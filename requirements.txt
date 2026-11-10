@@ -2,6 +2,5 @@ crewai==1.15.39
 crewai-tools
 python-dotenv
 yfinance
-litellm==1.108.3
-mcp>=1.30.0,<2.0.0
+litellm==1.99.4
 streamlit

@@ -7,26 +7,11 @@ import os
 
 load_dotenv()
 
-# ── Patch: inject types removed from mcp>=1.10 that litellm still imports ────
-try:
-    import mcp.types as _mcp_types
-
-    if not hasattr(_mcp_types, "CacheableResult"):
-        class _CacheableResult:
-            """Stub for mcp.types.CacheableResult (removed in mcp >= 1.10)."""
-            def __init__(self, *args, **kwargs):
-                pass
-        _mcp_types.CacheableResult = _CacheableResult
-
-    if not hasattr(_mcp_types, "InputRequiredResult"):
-        class _InputRequiredResult:
-            """Stub for mcp.types.InputRequiredResult (removed in mcp >= 1.10)."""
-            def __init__(self, *args, **kwargs):
-                pass
-        _mcp_types.InputRequiredResult = _InputRequiredResult
-
-except Exception:
-    pass  # if mcp isn't installed yet, skip silently
+# Inject Streamlit Cloud secrets into environment (for deployment)
+if hasattr(st, "secrets"):
+    for key, value in st.secrets.items():
+        if isinstance(value, str):
+            os.environ.setdefault(key, value)
 
 # Inject Streamlit Cloud secrets into environment (for deployment)
 if hasattr(st, "secrets"):
