@@ -3,8 +3,15 @@ from dotenv import load_dotenv
 import threading
 import queue
 import re
+import os
 
 load_dotenv()
+
+# Inject Streamlit Cloud secrets into environment (for deployment)
+if hasattr(st, "secrets"):
+    for key, value in st.secrets.items():
+        if isinstance(value, str):
+            os.environ.setdefault(key, value)
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
