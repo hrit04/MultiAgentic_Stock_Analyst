@@ -3,5 +3,4 @@ crewai-tools
 python-dotenv
 yfinance
 litellm==1.108.3
-mcp==1.9.4
 streamlit
