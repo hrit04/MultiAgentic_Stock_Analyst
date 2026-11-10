@@ -5,8 +5,7 @@ from tools.stock_research_tool import get_stock_price
 # initialize the llm
 llm = LLM(
     model="groq/openai/gpt-oss-120b",
-    temperature=0.0,
-    cache=False
+    temperature=0.0
 )
 
 analyst_agent = Agent(
