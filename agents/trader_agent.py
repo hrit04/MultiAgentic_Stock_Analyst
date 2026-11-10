@@ -2,7 +2,8 @@ from crewai import Agent, LLM
 
 llm = LLM(
     model="groq/openai/gpt-oss-120b",
-    temperature=0
+    temperature=0,
+    cache=False
 )
 
 trader_agent = Agent(
@@ -18,5 +19,6 @@ trader_agent = Agent(
     ),
     llm=llm,
     tools=[],
-    verbose=True
+    verbose=True,
+    cache=False
 )
