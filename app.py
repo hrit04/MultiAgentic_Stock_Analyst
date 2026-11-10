@@ -7,17 +7,24 @@ import os
 
 load_dotenv()
 
-# ── Patch: inject missing CacheableResult into mcp.types for Python 3.14 ─────
+# ── Patch: inject types removed from mcp>=1.10 that litellm still imports ────
 try:
     import mcp.types as _mcp_types
+
     if not hasattr(_mcp_types, "CacheableResult"):
-        from typing import Union
-        # CacheableResult is a union of cacheable content types in MCP spec
-        _mcp_types.CacheableResult = Union[
-            _mcp_types.TextContent,
-            _mcp_types.ImageContent,
-            _mcp_types.EmbeddedResource,
-        ]
+        class _CacheableResult:
+            """Stub for mcp.types.CacheableResult (removed in mcp >= 1.10)."""
+            def __init__(self, *args, **kwargs):
+                pass
+        _mcp_types.CacheableResult = _CacheableResult
+
+    if not hasattr(_mcp_types, "InputRequiredResult"):
+        class _InputRequiredResult:
+            """Stub for mcp.types.InputRequiredResult (removed in mcp >= 1.10)."""
+            def __init__(self, *args, **kwargs):
+                pass
+        _mcp_types.InputRequiredResult = _InputRequiredResult
+
 except Exception:
     pass  # if mcp isn't installed yet, skip silently
 
