@@ -178,9 +178,17 @@ with col2:
 
 # ── Helper: parse outputs ─────────────────────────────────────────────────────
 def parse_price_info(text: str):
-    """Extract price and change from analyst output."""
-    price = re.search(r'\*{0,2}(?:Current Stock Price|Price)[:\s*]+\$?([\d,.]+)', text, re.IGNORECASE)
-    change = re.search(r'(?:Daily Price Change|Change)[:\s*‑\-]+\$?([\d,.]+)\s*USD?\s*\(([-\d.]+)%\)', text, re.IGNORECASE)
+    """Extract price and change from analyst output or raw tool text."""
+    # Match: Price: 123.45 USD  (tool output format)
+    price = re.search(r'Price:\s*\$?([\d,.]+)', text, re.IGNORECASE)
+    # Match: Change: 1.23 (0.5%)  (tool output format)
+    change = re.search(r'Change:\s*-?([\d,.]+)\s*\(([-+]?[\d.]+)%\)', text, re.IGNORECASE)
+    # Fallback: Current Stock Price: $123.45  (LLM narrative format)
+    if not price:
+        price = re.search(r'(?:Current Stock Price|Stock Price|Price)[:\s*]+\$?([\d,.]+)', text, re.IGNORECASE)
+    # Fallback: Daily Price Change / Change: $1.23 (0.5%)
+    if not change:
+        change = re.search(r'(?:Daily Price Change|Change)[:\s*‑\-]+\$?([\d,.]+)\s*(?:USD)?\s*\(([-+]?[\d.]+)%\)', text, re.IGNORECASE)
     return (
         price.group(1) if price else None,
         change.group(1) if change else None,
@@ -239,6 +247,23 @@ if run_btn and ticker:
             st.code(raw_log)
         st.stop()
 
+    # ── Fetch live price data directly (reliable, not dependent on LLM format) ─
+    live_price, live_change_abs, live_change_pct = None, None, None
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info
+        live_price = info.get("regularMarketPrice") or info.get("currentPrice")
+        live_change_abs = info.get("regularMarketChange")
+        live_change_pct = info.get("regularMarketChangePercent")
+        if live_price:
+            live_price = f"{live_price:,.2f}"
+        if live_change_abs:
+            live_change_abs = f"{abs(live_change_abs):,.2f}"
+        if live_change_pct:
+            live_change_pct = f"{live_change_pct:.2f}"
+    except Exception:
+        pass
+
     # ── Split output into analyst vs trader sections ──────────────────────────
     # CrewAI verbose output contains "Agent: Financial Market Analyst" markers
     analyst_output = ""
@@ -255,11 +280,16 @@ if run_btn and ticker:
     # ── Price metrics card ────────────────────────────────────────────────────
     price, change_abs, change_pct = parse_price_info(analyst_output or result_text)
 
-    if price:
-        is_positive = change_pct and not change_pct.startswith('-')
+    # Prefer directly fetched live data over LLM-parsed data
+    display_price = live_price or price
+    display_change_abs = live_change_abs or change_abs
+    display_change_pct = live_change_pct or change_pct
+
+    if display_price:
+        is_positive = display_change_pct and not str(display_change_pct).startswith('-')
         change_color = "metric-change-positive" if is_positive else "metric-change-negative"
         change_arrow = "▲" if is_positive else "▼"
-        change_display = f"{change_arrow} ${change_abs} ({change_pct}%)" if change_abs else ""
+        change_display = f"{change_arrow} ${display_change_abs} ({display_change_pct}%)" if display_change_abs else ""
 
         c1, c2, c3 = st.columns(3)
         c1.markdown(f"""
@@ -270,7 +300,7 @@ if run_btn and ticker:
         c2.markdown(f"""
         <div class='metric-card'>
             <div class='metric-label'>Current Price</div>
-            <div class='metric-value'>${price}</div>
+            <div class='metric-value'>${display_price}</div>
         </div>""", unsafe_allow_html=True)
         c3.markdown(f"""
         <div class='metric-card'>
