@@ -13,6 +13,24 @@ if hasattr(st, "secrets"):
         if isinstance(value, str):
             os.environ.setdefault(key, value)
 
+# Disable litellm prompt caching — Groq doesn't support cache_breakpoint
+os.environ["LITELLM_CACHE"] = "False"
+os.environ["LITELLM_LOCAL_CACHE"] = "False"
+
+# Patch crewai ToolsHandler: cache=True (bool) breaks .cache.read() on Python 3.14
+# Force it to None so the cache branch is never entered
+try:
+    from crewai.agents.tools_handler import ToolsHandler
+    _original_init = ToolsHandler.__init__
+
+    def _patched_init(self, *args, **kwargs):
+        _original_init(self, *args, **kwargs)
+        self.cache = None  # prevent 'bool has no attribute get' crash
+
+    ToolsHandler.__init__ = _patched_init
+except Exception:
+    pass
+
 # Inject Streamlit Cloud secrets into environment (for deployment)
 if hasattr(st, "secrets"):
     for key, value in st.secrets.items():
