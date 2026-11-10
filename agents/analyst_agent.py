@@ -18,6 +18,5 @@ analyst_agent = Agent(
                  "stock performance using live market indicators."),
     llm=llm,
     tools=[get_stock_price],
-    verbose=True,
-    cache=False
+    verbose=True
 )

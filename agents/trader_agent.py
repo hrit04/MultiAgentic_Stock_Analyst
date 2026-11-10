@@ -19,6 +19,5 @@ trader_agent = Agent(
     ),
     llm=llm,
     tools=[],
-    verbose=True,
-    cache=False
+    verbose=True
 )
