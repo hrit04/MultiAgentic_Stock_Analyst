@@ -13,23 +13,32 @@ if hasattr(st, "secrets"):
         if isinstance(value, str):
             os.environ.setdefault(key, value)
 
-# Disable litellm prompt caching — Groq doesn't support cache_breakpoint
-os.environ["LITELLM_CACHE"] = "False"
-os.environ["LITELLM_LOCAL_CACHE"] = "False"
-
-# Patch crewai ToolsHandler: cache=True (bool) breaks .cache.read() on Python 3.14
-# Force it to None so the cache branch is never entered
+# ── Patch crewai prompt-cache breakpoints (Groq rejects cache_breakpoint) ────
+# Must run before any crewai imports happen in crew.py / agent files
 try:
-    from crewai.agents.tools_handler import ToolsHandler
-    _original_init = ToolsHandler.__init__
-
-    def _patched_init(self, *args, **kwargs):
-        _original_init(self, *args, **kwargs)
-        self.cache = None  # prevent 'bool has no attribute get' crash
-
-    ToolsHandler.__init__ = _patched_init
+    import crewai.llms.cache as _crewai_cache
+    def _noop_mark_cache_breakpoint(message):
+        """Strip cache_breakpoint key — Groq doesn't support it."""
+        msg = dict(message)
+        msg.pop("cache_breakpoint", None)
+        return msg
+    _crewai_cache.mark_cache_breakpoint = _noop_mark_cache_breakpoint
 except Exception:
     pass
+
+# ── Patch ToolsHandler so cache=True (bool) doesn't crash on .read()/.get() ──
+try:
+    from crewai.agents.tools_handler import ToolsHandler
+    _orig_tools_handler_init = ToolsHandler.__init__
+    def _patched_tools_handler_init(self, *args, **kwargs):
+        _orig_tools_handler_init(self, *args, **kwargs)
+        if not hasattr(self.cache, "read"):
+            self.cache = None
+    ToolsHandler.__init__ = _patched_tools_handler_init
+except Exception:
+    pass
+
+
 
 # Inject Streamlit Cloud secrets into environment (for deployment)
 if hasattr(st, "secrets"):
